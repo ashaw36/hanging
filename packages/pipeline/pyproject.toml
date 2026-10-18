@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "behavior-pipeline"
+version = "0.1.0"
+description = "Multimodal behavior feature extraction pipeline (MVP demo)"
+requires-python = ">=3.9"
+dependencies = [
+  "numpy>=1.23",
+  "opencv-python-headless>=4.8",
+  "mediapipe>=0.10.9",
+  "librosa>=0.10",
+  "soundfile>=0.12",
+  "pandas>=2.0",
+  "pyarrow>=14",
+  "imageio-ffmpeg>=0.4",
+  "faster-whisper>=1.0",
+]
+
+[project.scripts]
+behavior-demo = "pipeline.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["pipeline*"]

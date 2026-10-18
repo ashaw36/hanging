@@ -1,0 +1,21 @@
+version: rules-0.1.0
+window_sec: 5
+min_duration_sec: 2
+z_threshold: 2.0
+alert_z: 2.5
+min_baseline_sec: 30
+keyword_merge_sec: 3
+markers:
+  - blink_rate
+  - gaze_yaw
+  - gaze_pitch
+  - head_yaw
+  - head_pitch
+  - head_roll
+  - f0_hz
+  - energy_db
+  - au_04
+  - anger_cluster
+keywords:
+  high_risk: [自杀, 死亡, 报复, 杀人]
+  concern: [失眠, 离婚, 欠债, 恨, 焦虑, 抑郁]

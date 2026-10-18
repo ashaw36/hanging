@@ -1,0 +1,21 @@
+version: indicators-0.1.0
+# Empirical presets. Change these numbers and re-run; do not hardcode them in the UI.
+scales:
+  au_high: 0.35
+  au_low_flat: 0.04
+  au_typical: 0.16
+  f0_std_flat_hz: 18
+  f0_std_typical_hz: 40
+  speech_cpm_slow: 90
+  speech_cpm_typical: 200
+  pause_ratio_high: 0.5
+  blink_per_min_high: 28
+  blink_per_min_typical: 15
+  head_jitter_dps_high: 12
+  gaze_speed_dps_high: 20
+  gaze_focus_deg: 8
+  anger_rise_high: 0.25
+  polarity_std_high: 0.12
+  recovery_sec_high: 8
+  micro_per_min_high: 12
+  spike_z_high: 2.5

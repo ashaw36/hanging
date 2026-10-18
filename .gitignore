@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+data/
+apps/web/node_modules/
+apps/web/dist/
+.DS_Store
+.mplconfig/
