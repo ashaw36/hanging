@@ -56,12 +56,22 @@ def classify_segments(client: DeepSeek, segments: list[dict[str, Any]], labels: 
         return segments
     system = (
         "你是访谈文本标注员。只输出 JSON。"
+        "必须输出 {\"items\": [{\"id\": \"<段id>\", \"topic\": \"<标签>\", "
+        "\"polarity\": \"<正|中|负>\", \"evidence\": \"<原文连续短句>\"}]} 这种数组结构。"
         "topic 必须是给定标签之一。polarity 只能是 正、中、负。"
         "evidence 必须是原文里的连续短句，不要编造。"
     )
     user = json.dumps({"labels": labels, "segments": payload}, ensure_ascii=False)
     data = client.chat_json(system, user)
     items = data.get("items") or data.get("segments") or []
+    if not items and isinstance(data, dict):
+        fallback = []
+        for key, item in data.items():
+            if isinstance(item, dict):
+                merged = dict(item)
+                merged.setdefault("id", key)
+                fallback.append(merged)
+        items = fallback
     by_id = {str(it.get("id")): it for it in items if isinstance(it, dict)}
     allowed = set(labels)
     out = []
@@ -87,6 +97,8 @@ def write_narratives(client: DeepSeek, cards: list[dict[str, Any]]) -> None:
         return
     system = (
         "你根据给定的结构化对比写中文说明，只输出 JSON。"
+        "必须输出 {\"cards\": [{\"id\": \"<卡片id>\", \"phenomenon\": \"...\", "
+        "\"comparison\": \"...\", \"trend\": \"...\", \"prediction\": \"...\"}]} 这种数组结构。"
         "禁止编造输入里没有的心率、次数、秒数和分数。"
         "每张卡片四段：phenomenon、comparison、trend、prediction。"
         "如果输入不足以判断趋势或预测，直接写“现有片段不足以判断”。"
@@ -112,6 +124,14 @@ def write_narratives(client: DeepSeek, cards: list[dict[str, Any]]) -> None:
         timeout=120,
     )
     items = data.get("cards") or data.get("items") or []
+    if not items and isinstance(data, dict):
+        fallback = []
+        for key, item in data.items():
+            if isinstance(item, dict):
+                merged = dict(item)
+                merged.setdefault("id", key)
+                fallback.append(merged)
+        items = fallback
     by_id = {str(it.get("id")): it for it in items if isinstance(it, dict)}
     for card in cards:
         hit = by_id.get(card["id"])
