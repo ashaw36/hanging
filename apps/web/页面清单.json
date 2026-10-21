@@ -1,0 +1,74 @@
+[
+  {
+    "file": "index.html",
+    "title": "首页工作台"
+  },
+  {
+    "file": "analysis.html",
+    "title": "新建分析任务"
+  },
+  {
+    "file": "batch.html",
+    "title": "历史视频批量导入"
+  },
+  {
+    "file": "capture.html",
+    "title": "现场采集"
+  },
+  {
+    "file": "tasks.html",
+    "title": "解析任务中心"
+  },
+  {
+    "file": "data.html",
+    "title": "数据管理"
+  },
+  {
+    "file": "semantic.html",
+    "title": "语义分析"
+  },
+  {
+    "file": "markers.html",
+    "title": "数字标志物分析"
+  },
+  {
+    "file": "alignment.html",
+    "title": "语义—标志物对齐分析"
+  },
+  {
+    "file": "indicators.html",
+    "title": "预测性指标分析"
+  },
+  {
+    "file": "special.html",
+    "title": "特殊内容识别与对比"
+  },
+  {
+    "file": "alerts.html",
+    "title": "异常突变与预警中心"
+  },
+  {
+    "file": "reports.html",
+    "title": "报告中心"
+  },
+  {
+    "file": "logs.html",
+    "title": "原始数据与可复现日志"
+  },
+  {
+    "file": "models.html",
+    "title": "模型管理与运行状态"
+  },
+  {
+    "file": "settings.html",
+    "title": "系统设置与本地安全"
+  },
+  {
+    "file": "profile.html",
+    "title": "心理画像总览"
+  },
+  {
+    "file": "report.html",
+    "title": "视频分析报告"
+  }
+]

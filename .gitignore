@@ -7,3 +7,6 @@ apps/web/node_modules/
 apps/web/dist/
 .DS_Store
 .mplconfig/
+
+# 旧 React 前端备份（已被 18 页原型替换，git 历史可回滚）
+apps/web/_legacy_react/

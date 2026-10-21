@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import sqlite3
+import subprocess
 import threading
 import traceback
 from datetime import datetime, timezone
@@ -13,7 +15,6 @@ from uuid import uuid4
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
 
 ROOT = Path(__file__).resolve().parents[2]
 import sys
@@ -24,7 +25,7 @@ sys.path.insert(0, str(ROOT / "packages" / "portrait"))
 DATA = ROOT / "data"
 JOBS = DATA / "jobs"
 DB_PATH = DATA / "app.db"
-DIST = ROOT / "apps" / "web" / "dist"
+WEB = ROOT / "apps" / "web"
 CONFIG = ROOT / "config"
 MAX_DURATION_MS = 30 * 60 * 1000
 
@@ -138,10 +139,133 @@ def _work(job_id: str) -> None:
         _update(job_id, status="failed", stage="failed", error=str(exc)[:500])
 
 
+def _openface_health() -> dict:
+    from pipeline.openface_pipe import (
+        DEFAULT_DOCKER_IMAGE,
+        OPENFACE_VERSION,
+        docker_available,
+        resolve_openface_bin,
+    )
+
+    image = (os.environ.get("OPENFACE_DOCKER_IMAGE") or DEFAULT_DOCKER_IMAGE).strip()
+    native = resolve_openface_bin()
+    docker_ok = docker_available()
+    image_present = False
+    if docker_ok:
+        try:
+            proc = subprocess.run(
+                ["docker", "image", "inspect", image],
+                capture_output=True,
+                text=True,
+                timeout=20,
+                check=False,
+            )
+            image_present = proc.returncode == 0
+        except (OSError, subprocess.TimeoutExpired):
+            image_present = False
+
+    if native:
+        return {
+            "available": True,
+            "mode": "native",
+            "image": image,
+            "version": OPENFACE_VERSION,
+            "binary": native,
+        }
+    if docker_ok and image_present:
+        return {
+            "available": True,
+            "mode": "docker",
+            "image": image,
+            "version": OPENFACE_VERSION,
+            "binary": None,
+        }
+    return {
+        "available": False,
+        "mode": "none",
+        "image": image,
+        "version": OPENFACE_VERSION,
+        "binary": None,
+        "docker_running": docker_ok,
+        "image_present": image_present,
+    }
+
+
+def _models_health() -> dict:
+    mediapipe_ok = False
+    try:
+        import mediapipe as mp  # noqa: F401
+
+        mediapipe_ok = True
+    except Exception:  # noqa: BLE001
+        mediapipe_ok = False
+    return {
+        "mediapipe": mediapipe_ok,
+        "mediapipe_face": mediapipe_ok,
+        "mediapipe_pose": mediapipe_ok,
+    }
+
+
+def _versions_health() -> dict:
+    versions = {
+        "pipeline": "0.1.0",
+        "indicators": "indicators-0.1.0",
+        "rules": "rules-0.1.0",
+        "topics": "topics-0.1.0",
+    }
+    for name, key in (
+        ("indicators-0.1.0.yaml", "indicators"),
+        ("rules-0.1.0.yaml", "rules"),
+        ("topics-0.1.0.yaml", "topics"),
+    ):
+        path = CONFIG / name
+        if path.exists():
+            versions[key] = path.stem
+    try:
+        from importlib.metadata import version as pkg_version
+
+        versions["pipeline"] = pkg_version("pipeline")
+    except Exception:  # noqa: BLE001
+        init_path = ROOT / "packages" / "pipeline" / "pipeline" / "__init__.py"
+        if init_path.exists():
+            text = init_path.read_text(encoding="utf-8")
+            for line in text.splitlines():
+                if "__version__" in line and "=" in line:
+                    versions["pipeline"] = line.split("=", 1)[1].strip().strip("'\"")
+                    break
+    return versions
+
+
+def _system_health() -> dict:
+    info: dict = {"cpu_percent": None, "mem_percent": None, "disk_free_gb": None, "device": "CPU"}
+    try:
+        import psutil
+
+        info["cpu_percent"] = round(psutil.cpu_percent(interval=0.1), 1)
+        info["mem_percent"] = round(psutil.virtual_memory().percent, 1)
+        info["disk_free_gb"] = round(psutil.disk_usage(str(ROOT)).free / (1024**3), 1)
+    except Exception:  # noqa: BLE001
+        try:
+            usage = shutil.disk_usage(str(ROOT))
+            info["disk_free_gb"] = round(usage.free / (1024**3), 1)
+        except Exception:  # noqa: BLE001
+            pass
+    return info
+
+
 @app.get("/api/health")
 def health():
     key = bool(os.environ.get("DEEPSEEK_API_KEY", "").strip())
-    return {"ok": True, "deepseek_configured": key, "asr_model": ASR_MODEL, "stride": STRIDE}
+    return {
+        "ok": True,
+        "deepseek_configured": key,
+        "asr_model": ASR_MODEL,
+        "stride": STRIDE,
+        "openface": _openface_health(),
+        "models": _models_health(),
+        "versions": _versions_health(),
+        "system": _system_health(),
+    }
 
 
 @app.get("/api/jobs")
@@ -202,18 +326,51 @@ async def create_job(file: UploadFile = File(...), narrate: str = Form("true")):
     return JSONResponse(_job_view(_row(job_id)), status_code=201)
 
 
-if DIST.exists():
-    app.mount("/assets", StaticFiles(directory=DIST / "assets"), name="assets")
+# --- Static 18-page prototype UI ---
+HTML_PAGES = {
+    "index",
+    "analysis",
+    "batch",
+    "capture",
+    "tasks",
+    "data",
+    "semantic",
+    "markers",
+    "alignment",
+    "indicators",
+    "special",
+    "alerts",
+    "reports",
+    "logs",
+    "models",
+    "settings",
+    "profile",
+    "report",
+}
 
-    @app.get("/")
-    def index():
-        return FileResponse(DIST / "index.html")
+
+@app.get("/")
+def index():
+    path = WEB / "index.html"
+    if not path.exists():
+        raise HTTPException(404, "前端未构建：请运行 apps/web/build.py")
+    return FileResponse(path)
+
+
+@app.get("/{page}.html")
+def html_page(page: str):
+    if page not in HTML_PAGES:
+        raise HTTPException(404, "页面不存在")
+    path = WEB / f"{page}.html"
+    if not path.exists():
+        raise HTTPException(404, "页面文件缺失")
+    return FileResponse(path)
 
 
 def main() -> None:
     import uvicorn
 
-    uvicorn.run(app, host="127.0.0.1", port=int(os.environ.get("PORT", "8765")))
+    uvicorn.run(app, host=os.environ.get("HOST", "0.0.0.0"), port=int(os.environ.get("PORT", "8765")))
 
 
 if __name__ == "__main__":

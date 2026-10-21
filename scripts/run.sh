@@ -11,8 +11,8 @@ else
   echo "先创建虚拟环境并安装依赖: python3 -m venv .venv && .venv/bin/pip install -r requirements.txt"
   exit 1
 fi
-if [[ ! -f apps/web/dist/index.html ]]; then
-  (cd apps/web && npm install && npm run build)
+if [[ ! -f apps/web/index.html ]] || [[ apps/web/api.js -nt apps/web/index.html ]] || [[ apps/web/core.js -nt apps/web/index.html ]] || [[ apps/web/system.js -nt apps/web/index.html ]]; then
+  "$PY" apps/web/build.py
 fi
 if [[ -f .env ]]; then
   set -a
